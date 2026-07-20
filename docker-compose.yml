@@ -1,0 +1,48 @@
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: boilerplate_postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: dev
+      POSTGRES_PASSWORD: dev
+      POSTGRES_DB: boilerplate
+    ports:
+      - "5432:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U dev -d boilerplate"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  # Service API dockerise. Utile pour :
+  # - simuler l'environnement de prod avant un vrai deploiement
+  # - livrer le projet a un client / le deployer sans configurer Node localement
+  # En dev quotidien, `npm run dev` en local (hot-reload) reste plus rapide
+  # que de reconstruire l'image a chaque changement de code.
+  api:
+    build:
+      context: .
+      target: production
+    container_name: boilerplate_api
+    restart: unless-stopped
+    ports:
+      - "3000:3000"
+    environment:
+      NODE_ENV: production
+      PORT: 3000
+      DATABASE_URL: postgresql://dev:dev@postgres:5432/boilerplate?schema=public
+      JWT_ACCESS_SECRET: ${JWT_ACCESS_SECRET}
+      JWT_REFRESH_SECRET: ${JWT_REFRESH_SECRET}
+      JWT_ACCESS_EXPIRES_IN: ${JWT_ACCESS_EXPIRES_IN:-15m}
+      JWT_REFRESH_EXPIRES_IN: ${JWT_REFRESH_EXPIRES_IN:-7d}
+    depends_on:
+      postgres:
+        condition: service_healthy
+    profiles:
+      - full
+
+volumes:
+  pgdata:

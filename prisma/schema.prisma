@@ -1,0 +1,52 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum Role {
+  ADMIN
+  USER
+}
+
+model User {
+  id        String   @id @default(uuid())
+  email     String   @unique
+  password  String
+  role      Role     @default(USER)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  tasks         Task[]
+  refreshTokens RefreshToken[]
+}
+
+// Stocker les refresh tokens permet de les revoquer (logout, changement de
+// mot de passe, compromission suspectee) au lieu de se fier uniquement a
+// leur expiration JWT.
+model RefreshToken {
+  id        String   @id @default(uuid())
+  token     String   @unique
+  userId    String
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+// Entite d'exemple pour le CRUD generique. A dupliquer/adapter pour chaque
+// nouvelle ressource (renommer, ajuster les champs).
+model Task {
+  id          String   @id @default(uuid())
+  title       String
+  description String?
+  done        Boolean  @default(false)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  owner   User   @relation(fields: [ownerId], references: [id], onDelete: Cascade)
+  ownerId String
+}
